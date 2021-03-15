@@ -97,7 +97,7 @@ if (params.input){
         .set{data_b0_mask}
 
     Channel
-       .fromPath("$root/**/*wm_mask.nii.gz",
+       .fromPath("$root/**/*mask_wm.nii.gz",
                  maxDepth:1)
        .map{[it.parent.name, it]}
        .into{wm_mask_for_pft_tracking; wm_mask_for_local_seeding_mask; wm_mask_for_local_tracking_mask}

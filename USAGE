@@ -23,7 +23,7 @@ DESCRIPTION
                                         │   ├── bval
                                         │   ├── b0.nii.gz
                                         │   ├── b0_mask.nii.gz
-                                        │   ├── wm_mask.nii.gz (optional)
+                                        │   ├── mask_wm.nii.gz (optional)
                                         │   ├── map_wm.nii.gz (optional)
                                         │   ├── map_gm.nii.gz (optional)
                                         │   └── map_csf.nii.gz (optional)
@@ -32,7 +32,7 @@ DESCRIPTION
                                             ├── bval
                                             ├── b0.nii.gz
                                             ├── b0_mask.nii.gz
-                                            ├── wm_mask.nii.gz (optional)
+                                            ├── mask_wm.nii.gz (optional)
                                             ├── map_wm.nii.gz (optional)
                                             ├── map_gm.nii.gz (optional)
                                             └── map_csf.nii.gz (optional)
