@@ -200,8 +200,8 @@ process SF_From_SH {
     export OPENBLAS_NUM_THREADS=1
 
     # Compute DTI from SH
-    scil_compute_sf_from_sh.py $sh ${sid}__sf.nii.gz --in_bval $bval \
-        --in_b0 $b0 --sh_basis $params.sh_basis
+    scil_compute_sf_from_sh.py $sh ${sid}__sf.nii.gz --sh_basis $params.sh_basis \
+        --extract_as_dwi --bval $bval --b0 $b0
     """
 }
 
