@@ -185,7 +185,7 @@ process README {
 }
 
 process SF_From_SH {
-    cpus 1
+    cpus 3
 
     input:
     set sid, file(b0), file(bval), file(sh) from data_sh_to_sf
@@ -201,7 +201,7 @@ process SF_From_SH {
 
     # Compute DTI from SH
     scil_compute_sf_from_sh.py $sh ${sid}__sf.nii.gz --sh_basis $params.sh_basis \
-        --sphere repulsion200 --extract_as_dwi --bval $bval --b0 $b0
+        --sphere repulsion200 --extract_as_dwi --bval $bval --b0 $b0 --processes 3
     """
 }
 
