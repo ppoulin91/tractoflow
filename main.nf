@@ -201,7 +201,8 @@ process SF_From_SH {
 
     # Compute DTI from SH
     scil_compute_sf_from_sh.py $sh ${sid}__sf.nii.gz --sh_basis $params.sh_basis \
-        --sphere repulsion200 --extract_as_dwi --bval $bval --b0 $b0 --processes 3
+        --sphere repulsion200 --in_bval $bval --in_b0 $b0 \
+        --out_bval ${sid}__sf.bval --out_bvec ${sid}__sf.bvec --processes 3
     """
 }
 
