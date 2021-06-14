@@ -210,7 +210,7 @@ sf_and_grad
     .join(data_b0_mask)
     .into{sf_and_b0_mask_for_dti;sf_and_b0_mask_for_fodf;sf_and_b0_mask_for_frf}
 
-process DTI_Metrics_From_SH {
+process DTI_Metrics {
     cpus 3
 
     input:
