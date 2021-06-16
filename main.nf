@@ -184,37 +184,12 @@ process README {
     """
 }
 
-process SF_From_SH {
+process Compute_Metrics {
     cpus 3
 
     input:
     set sid, file(b0), file(bval), file(sh) from data_sh_to_sf
-
-    output:
-    set sid, "${sid}__sf.nii.gz", "${sid}__sf.bval", "${sid}__sf.bvec" into sf_and_grad
-
-    script:
-    """
-    export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1
-    export OMP_NUM_THREADS=1
-    export OPENBLAS_NUM_THREADS=1
-
-    # Compute DTI from SH
-    scil_compute_sf_from_sh.py $sh ${sid}__sf.nii.gz --sh_basis $params.sh_basis \
-        --sphere repulsion200 --in_bval $bval --in_b0 $b0 \
-        --out_bval ${sid}__sf.bval --out_bvec ${sid}__sf.bvec --processes 3
-    """
-}
-
-sf_and_grad
-    .join(data_b0_mask)
-    .into{sf_and_b0_mask_for_dti;sf_and_b0_mask_for_fodf;sf_and_b0_mask_for_frf}
-
-process DTI_Metrics {
-    cpus 3
-
-    input:
-    set sid, file(sf), file(bval), file(bvec), file(b0_mask) from sf_and_b0_mask_for_dti
+    set sid, file(b0_mask) from data_b0_mask
 
     output:
     file "${sid}__ad.nii.gz"
@@ -226,7 +201,10 @@ process DTI_Metrics {
     file "${sid}__evals_e1.nii.gz"
     file "${sid}__evals_e2.nii.gz"
     file "${sid}__evals_e3.nii.gz"
-    file "${sid}__fa.nii.gz"
+
+    set sid, "${sid}__fa.nii.gz" into\
+        fa_for_pft_tracking, fa_for_local_tracking_mask, fa_for_local_seeding_mask
+
     file "${sid}__ga.nii.gz"
     file "${sid}__rgb.nii.gz"
     file "${sid}__md.nii.gz"
@@ -243,9 +221,17 @@ process DTI_Metrics {
     file "${sid}__residual_q3_residuals.npy"
     file "${sid}__residual_residuals_stats.png"
     file "${sid}__residual_std_residuals.npy"
-    set sid, "${sid}__fa.nii.gz", "${sid}__md.nii.gz" into fa_md_for_fodf
-    set sid, "${sid}__fa.nii.gz" into\
-        fa_for_pft_tracking, fa_for_local_tracking_mask, fa_for_local_seeding_mask
+
+    file "${sid}__frf.txt"
+
+    set sid, "${sid}__fodf.nii.gz" into fodf_for_pft_tracking, fodf_for_local_tracking
+    file "${sid}__peaks.nii.gz"
+    file "${sid}__peak_indices.nii.gz"
+    file "${sid}__afd_max.nii.gz"
+    file "${sid}__afd_total.nii.gz"
+    file "${sid}__afd_sum.nii.gz"
+    file "${sid}__nufo.nii.gz"
+
 
     script:
     """
@@ -253,8 +239,13 @@ process DTI_Metrics {
     export OMP_NUM_THREADS=1
     export OPENBLAS_NUM_THREADS=1
 
+    # Compute SF from SH
+    scil_compute_sf_from_sh.py $sh ${sid}__sf.nii.gz --sh_basis $params.sh_basis \
+        --sphere repulsion200 --in_bval $bval --in_b0 $b0 \
+        --out_bval ${sid}__sf.bval --out_bvec ${sid}__sf.bvec --processes 3
+
     # Compute DTI metrics
-    scil_compute_dti_metrics.py $sf $bval $bvec\
+    scil_compute_dti_metrics.py ${sid}__sf.nii.gz ${sid}__sf.bval ${sid}__sf.bvec\
         --mask $b0_mask\
         --ad ${sid}__ad.nii.gz --evecs ${sid}__evecs.nii.gz\
         --evals ${sid}__evals.nii.gz --fa ${sid}__fa.nii.gz\
@@ -266,111 +257,23 @@ process DTI_Metrics {
         --pulsation ${sid}__pulsation.nii.gz\
         --residual ${sid}__residual.nii.gz\
         -f --force_b0_threshold
-    """
-}
 
-process Compute_FRF {
-    cpus 3
 
-    input:
-    set sid, file(sf), file(bval), file(bvec), file(b0_mask)\
-        from sf_and_b0_mask_for_frf
+    scil_compute_ssst_frf.py ${sid}__sf.nii.gz ${sid}__sf.bval ${sid}__sf.bvec\
+    frf.txt --mask $b0_mask --fa $params.fa --min_fa $params.min_fa\
+    --min_nvox $params.min_nvox --roi_radii $params.roi_radius --force_b0_threshold
 
-    output:
-    set sid, "${sid}__frf.txt" into unique_frf, unique_frf_for_mean
-    file "${sid}__frf.txt" into all_frf_to_collect
+    scil_set_response_function.py frf.txt $params.manual_frf ${sid}__frf.txt
 
-    script:
-    if (params.set_frf)
-        """
-        export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1
-        export OMP_NUM_THREADS=1
-        export OPENBLAS_NUM_THREADS=1
-        scil_compute_ssst_frf.py $sf $bval $bvec frf.txt --mask $b0_mask\
-        --fa $params.fa --min_fa $params.min_fa --min_nvox $params.min_nvox\
-        --roi_radii $params.roi_radius --force_b0_threshold
-        scil_set_response_function.py frf.txt $params.manual_frf ${sid}__frf.txt
-        """
-    else
-        """
-        export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1
-        export OMP_NUM_THREADS=1
-        export OPENBLAS_NUM_THREADS=1
-        scil_compute_ssst_frf.py $sf $bval $bvec ${sid}__frf.txt --mask $b0_mask\
-        --fa $params.fa --min_fa $params.min_fa --min_nvox $params.min_nvox\
-        --roi_radii $params.roi_radius --force_b0_threshold
-        """
-}
-
-all_frf_to_collect
-    .collect()
-    .set{all_frf_for_mean_frf}
-
-process Mean_FRF {
-    cpus 1
-    publishDir = params.Mean_FRF_Publish_Dir
-    tag = {"All_FRF"}
-
-    input:
-    file(all_frf) from all_frf_for_mean_frf
-
-    output:
-    file "mean_frf.txt" into mean_frf
-
-    when:
-    params.mean_frf && !params.set_frf
-
-    script:
-    """
-    export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1
-    export OMP_NUM_THREADS=1
-    export OPENBLAS_NUM_THREADS=1
-    scil_compute_mean_frf.py $all_frf mean_frf.txt
-    """
-}
-
-frf_for_fodf = unique_frf
-
-if (params.mean_frf) {
-    frf_for_fodf = unique_frf_for_mean
-                   .merge(mean_frf)
-                   .map{it -> [it[0], it[2]]}
-}
-
-sf_and_b0_mask_for_fodf
-    .join(fa_md_for_fodf)
-    .join(frf_for_fodf)
-    .set{sf_b0_metrics_frf_for_fodf}
-
-process FODF_Metrics {
-    cpus params.processes_fodf
-
-    input:
-    set sid, file(sf), file(bval), file(bvec), file(b0_mask), file(fa),
-        file(md), file(frf) from sf_b0_metrics_frf_for_fodf
-
-    output:
-    set sid, "${sid}__fodf.nii.gz" into fodf_for_pft_tracking, fodf_for_local_tracking
-    file "${sid}__peaks.nii.gz"
-    file "${sid}__peak_indices.nii.gz"
-    file "${sid}__afd_max.nii.gz"
-    file "${sid}__afd_total.nii.gz"
-    file "${sid}__afd_sum.nii.gz"
-    file "${sid}__nufo.nii.gz"
-
-    script:
-    """
-    export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1
-    export OMP_NUM_THREADS=1
-    export OPENBLAS_NUM_THREADS=1
-    scil_compute_ssst_fodf.py $sf $bval $bvec $frf ${sid}__fodf.nii.gz\
+    scil_compute_ssst_fodf.py ${sid}__sf.nii.gz ${sid}__sf.bval ${sid}__sf.bvec\
+        ${sid}__frf.txt ${sid}__fodf.nii.gz\
         --sh_order $params.sh_order --sh_basis $params.fodf_basis --force_b0_threshold\
         --mask $b0_mask --processes $task.cpus
 
-    scil_compute_fodf_max_in_ventricles.py ${sid}__fodf.nii.gz $fa $md\
-        --max_value_output ventricles_fodf_max_value.txt --sh_basis $params.fodf_basis\
-        --fa_t $params.max_fa_in_ventricle --md_t $params.min_md_in_ventricle\
-        -f
+    scil_compute_fodf_max_in_ventricles.py ${sid}__fodf.nii.gz ${sid}__fa.nii.gz\
+        ${sid}__md.nii.gz --max_value_output ventricles_fodf_max_value.txt\
+        --sh_basis $params.fodf_basis --fa_t $params.max_fa_in_ventricle\
+        --md_t $params.min_md_in_ventricle -f
 
     a_threshold=\$(echo $params.fodf_metrics_a_factor*\$(cat ventricles_fodf_max_value.txt)|bc)
 

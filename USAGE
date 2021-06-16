@@ -50,12 +50,7 @@ OPTIONAL ARGUMENTS (current value)
 --fa                                        Initial FA threshold to compute the frf ($fa).
 --min_fa                                    Minimum FA threshold to compute the frf ($min_fa).
 --roi_radius                                Region of interest radius to compute the frf ($roi_radius).
---set_frf                                   Set manually the frf ($set_frf).
 --manual_frf                                FRF set manually ($manual_frf).
-
---mean_frf                                  Mean the frf of all subjects ($mean_frf).
-                                            USE ONLY IF ALL OF SUBJECTS COME FROM THE SAME SCANNER
-                                            AND HAVE THE SAME ACQUISITION.
 
 --sh_basis                                  Input SH basis [descoteaux07, tournier07] ($sh_basis).
 --sphere                                    Sphere used to transform SH into SF [repulsion100, repulsion200, repulsion724, symmetric362,
